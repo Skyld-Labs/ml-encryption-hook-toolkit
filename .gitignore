@@ -17,3 +17,5 @@ tensorrt/runtime/*
 tensorrt/attack/*
 !tensorrt/runtime/.gitkeep
 !tensorrt/attack/.gitkeep
+openvino/attack/
+openvino/runtime/
