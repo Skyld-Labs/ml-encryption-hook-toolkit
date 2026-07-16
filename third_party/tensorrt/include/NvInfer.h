@@ -1,0 +1,2 @@
+// stub NvInfer
+#pragma once

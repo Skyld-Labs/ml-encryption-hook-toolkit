@@ -1,0 +1,2 @@
+// stub NvOnnxParser
+#pragma once
