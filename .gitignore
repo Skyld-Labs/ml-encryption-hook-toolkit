@@ -1,0 +1,19 @@
+# Binaires compilés
+*.o
+*.so
+tensorrt/src/compile
+tensorrt/src/infer
+
+# Modeles et artefacts (trop lourds / générés, pas du code)
+*.onnx
+*.engine
+*.engine.enc
+
+# VS Code
+.vscode/
+
+# Dossiers de sortie generes a l'execution
+tensorrt/runtime/*
+tensorrt/attack/*
+!tensorrt/runtime/.gitkeep
+!tensorrt/attack/.gitkeep
