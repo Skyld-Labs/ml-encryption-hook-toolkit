@@ -81,7 +81,7 @@ g++ -std=c++17 -shared -fPIC openvino_read_model_hook.c -o openvino_read_model_h
 
 **1. Encrypt a model:**
 ```bash
-./compile_ov ../examples/model.onnx model.ov.enc <password>
+./compile_ov ../examples/model.onnx model.ov.enc <password> //Here the password is 'motdepasse123
 ```
 Output is written to `../runtime/model.ov.enc`. This converts the ONNX model to OpenVINO IR (XML graph + binary weights), packs both into a single buffer (`[4-byte XML length][XML][weights]`), and encrypts it.
 
