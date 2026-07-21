@@ -17,7 +17,12 @@ tensorrt/runtime/*
 tensorrt/attack/*
 !tensorrt/runtime/.gitkeep
 !tensorrt/attack/.gitkeep
-openvino/attack/
-openvino/runtime/
+
 onnx/runtime/
 onnx/attack/
+
+# OpenVINO — unified models/ folder + build/ folder
+openvino/models/*
+!openvino/models/.gitkeep
+openvino/build/
+openvino/src/*.so

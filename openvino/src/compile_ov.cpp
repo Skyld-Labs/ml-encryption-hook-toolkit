@@ -76,9 +76,9 @@ int main(int argc, char** argv) {
 
     auto encrypted = encrypt(packed, password);
     // Write the encrypted payload to the runtime directory used by the loader.
-    std::ofstream out("../runtime/" + outPath, std::ios::binary);
+    std::ofstream out("../models/" + outPath, std::ios::binary);
     out.write(reinterpret_cast<const char*>(encrypted.data()), encrypted.size());
-    std::cout << "[3/3] Encrypted IR written to ../runtime/" << outPath << "\n";
+    std::cout << "[3/3] Encrypted IR written to ../models/" << outPath << "\n";
 
     // Clean up the temporary IR files created during serialization.
     std::remove(xmlTmp.c_str());
