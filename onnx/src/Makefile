@@ -13,13 +13,19 @@ MODEL    ?= ../models/model.onnx
 BUILD_DIR = ../build
 MODELS_DIR = ../models
 
-.PHONY: all clean encrypt run-baseline run-attack setup
+.PHONY: all clean encrypt run-baseline \
+        run-attack run-attack-c run-attack-cxx \
+        run-attack-double hook-cxx-experimental setup
 
-all: compile_onnx infer_onnx onnx_session_hook.so
+all: $(BUILD_DIR)/compile_onnx \
+     $(BUILD_DIR)/infer_onnx \
+     $(BUILD_DIR)/onnx_session_hook.so
 
-# Not part of `all` on purpose — see README "Why the C++ API can't be hooked the same way"
-hook-cxx-experimental: onnx_session_hook_cxx.cpp
-	$(CXX) -shared -fPIC onnx_session_hook_cxx.cpp -o ../build/onnx_session_hook_cxx.so -I$(ORT_ROOT)/include -ldl -std=c++17
+hook-cxx-experimental: onnx_session_hook_cxx.cpp | setup
+	@echo "WARNING: ONNX Runtime C++ constructor hook is experimental and generally not interceptable."
+	$(CXX) -shared -fPIC onnx_session_hook_cxx.cpp \
+		-o $(BUILD_DIR)/onnx_session_hook_cxx.so \
+		$(ORT_INC) -ldl -std=c++17
 
 # Create directories
 setup:
@@ -55,9 +61,9 @@ run-attack-c: $(BUILD_DIR)/infer_onnx $(BUILD_DIR)/onnx_session_hook.so encrypt
 run-attack-cxx: $(BUILD_DIR)/infer_onnx $(BUILD_DIR)/onnx_session_hook_cxx.so encrypt
 	LD_PRELOAD=./$(BUILD_DIR)/onnx_session_hook_cxx.so ./$(BUILD_DIR)/infer_onnx $(MODELS_DIR)/model.onnx.enc $(PASSWORD)
 
-# Run with both hooks (double hook)
-run-attack-double: $(BUILD_DIR)/infer_onnx $(BUILD_DIR)/onnx_session_hook.so $(BUILD_DIR)/onnx_session_hook_cxx.so encrypt
-	LD_PRELOAD="./$(BUILD_DIR)/onnx_session_hook.so ./$(BUILD_DIR)/onnx_session_hook_cxx.so" \
+# Run with both hooks (C API is the effective hook)
+run-attack-double: $(BUILD_DIR)/infer_onnx $(BUILD_DIR)/onnx_session_hook.so encrypt
+	LD_PRELOAD="./$(BUILD_DIR)/onnx_session_hook.so" \
 	./$(BUILD_DIR)/infer_onnx $(MODELS_DIR)/model.onnx.enc $(PASSWORD)
 
 # Default attack uses C API hook (recommended)

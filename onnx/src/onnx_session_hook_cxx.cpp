@@ -1,6 +1,22 @@
-// onnx_session_hook_cxx.cpp - LD_PRELOAD hook for ONNX Runtime C++ API
-// NOTE: This is optional - the C API hook alone is usually sufficient.
-// The C++ hook is more fragile due to name mangling differences between compilers/versions.
+// onnx_session_hook_cxx.cpp - Experimental ONNX Runtime C++ API hook attempt.
+//
+// IMPORTANT:
+// This file is intentionally kept as a documented dead end.
+//
+// The working ONNX Runtime hook is the C API hook:
+//     onnx_session_hook.c
+//
+// Ort::Session constructors are defined inline in
+// onnxruntime_cxx_api.h. Their implementation is compiled directly into
+// the application binary (infer_onnx), not exported as dynamic symbols from
+// libonnxruntime.so.
+//
+// Therefore LD_PRELOAD cannot reliably intercept Ort::Session constructors.
+// The real interception point is the underlying C API:
+//     OrtApi::CreateSessionFromArray
+//
+// This file is kept to document the investigation path and the reason why
+// the C API approach is the correct attack surface.
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -12,46 +28,72 @@
 #include <vector>
 #include "onnxruntime_cxx_api.h"
 
-// Type definition for the real Session constructor
+
+// Type definition for a hypothetical Session constructor symbol.
+//
+// In practice this symbol is not exported by libonnxruntime.so because
+// Ort::Session constructors are inline C++ wrappers.
 typedef void (*SessionCtor_t)(
     Ort::Session* session,
     Ort::Env& env,
     const void* model_data,
     size_t model_data_length,
-    Ort::SessionOptions& options);
+    Ort::SessionOptions& options
+);
 
-// Global pointer to the REAL constructor
+
+// Pointer to the real constructor if a symbol ever exists.
 static SessionCtor_t g_orig_ctor = NULL;
 
-// Function to automatically find the correct symbol
-// The symbol name depends on the compiler version and ONNX Runtime version
-static SessionCtor_t find_session_constructor() {
-    // List of possible symbols for different compilers/versions
-    // GCC 9+ / Clang use these mangled names
+
+
+// Attempt to locate a Session constructor symbol.
+//
+// This normally fails because Ort::Session constructors are inline and are
+// compiled into the caller binary instead of being dynamically resolved.
+static SessionCtor_t find_session_constructor()
+{
     const char* symbols[] = {
-        // Standard constructors (GCC 9+ / Clang)
+
+        // Possible GCC/Clang mangled constructor names.
+        // Usually absent from libonnxruntime.so.
         "_ZN3Ort7SessionC1ERNS_3EnvEPKvmRNS_14SessionOptionsE",
         "_ZN3Ort7SessionC1ERNS_3EnvEPKvmRKNS_14SessionOptionsE",
         "_ZN3Ort7SessionC2ERNS_3EnvEPKvmRNS_14SessionOptionsE",
         "_ZN3Ort7SessionC2ERNS_3EnvEPKvmRKNS_14SessionOptionsE",
-        // Other possible variants (different signatures)
+
+        // Other possible ABI variants.
         "_ZN3Ort7SessionC1ERNS_3EnvEPKvmRNS_14SessionOptionsERKNS_17CustomOpDomainMapE",
         "_ZN3Ort7SessionC1ERNS_3EnvEPKvmRNS_14SessionOptionsES5_",
+
         NULL
     };
-    
-    for (int i = 0; symbols[i] != NULL; i++) {
+
+
+    for (int i = 0; symbols[i] != NULL; i++)
+    {
         void* sym = dlsym(RTLD_NEXT, symbols[i]);
-        if (sym) {
-            fprintf(stderr, "[HOOK C++] Found symbol: %s\n", symbols[i]);
+
+        if (sym)
+        {
+            fprintf(stderr,
+                    "[HOOK C++] Found unexpected symbol: %s\n",
+                    symbols[i]);
+
             return (SessionCtor_t)sym;
         }
     }
-    
+
+
     return NULL;
 }
 
-// Hook function - dumps the model then calls the real constructor
+
+
+// This function would dump the model before calling the real constructor.
+//
+// It is kept for completeness, but is normally unreachable because the
+// constructor symbol does not exist dynamically.
 static void hook_session_ctor(
     Ort::Session* session,
     Ort::Env& env,
@@ -59,55 +101,101 @@ static void hook_session_ctor(
     size_t model_data_length,
     Ort::SessionOptions& options)
 {
-    fprintf(stderr, "[HOOK C++] Session constructor intercepted, %zu bytes\n", model_data_length);
-    
-    // STEAL THE MODEL: dump plaintext ONNX to disk
+    fprintf(stderr,
+            "[HOOK C++] Session constructor intercepted, %zu bytes\n",
+            model_data_length);
+
+
     FILE *f = fopen("../models/dumped_model_cxx.onnx", "wb");
-    if (f) {
-        fwrite(model_data, 1, model_data_length, f);
+
+    if (f)
+    {
+        fwrite(model_data,
+               1,
+               model_data_length,
+               f);
+
         fclose(f);
-        fprintf(stderr, "[HOOK C++] Model dumped to ../models/dumped_model_cxx.onnx\n");
-    } else {
-        fprintf(stderr, "[HOOK C++] Failed to dump model\n");
+
+        fprintf(stderr,
+                "[HOOK C++] Model dumped to ../models/dumped_model_cxx.onnx\n");
     }
-    
-    // Call the REAL constructor
-    if (g_orig_ctor) {
-        g_orig_ctor(session, env, model_data, model_data_length, options);
-    } else {
-        fprintf(stderr, "[HOOK C++] ERROR: No original constructor found!\n");
+    else
+    {
+        fprintf(stderr,
+                "[HOOK C++] Failed to dump model\n");
+    }
+
+
+
+    if (g_orig_ctor)
+    {
+        g_orig_ctor(
+            session,
+            env,
+            model_data,
+            model_data_length,
+            options
+        );
+    }
+    else
+    {
+        fprintf(stderr,
+                "[HOOK C++] No original constructor available\n");
     }
 }
 
-// Constructor attribute - initializes the hook when the library is loaded
+
+
+// Initialize experimental hook.
 __attribute__((constructor))
-static void init_hook() {
-    fprintf(stderr, "[HOOK C++] Initializing C++ hook\n");
+static void init_hook()
+{
+    fprintf(stderr,
+            "[HOOK C++] Initializing experimental C++ hook\n");
+
+
     g_orig_ctor = find_session_constructor();
-    
-    if (g_orig_ctor) {
-        fprintf(stderr, "[HOOK C++] Successfully found Session constructor\n");
-    } else {
-        fprintf(stderr, "[HOOK C++] WARNING: Could not find Session constructor symbol\n");
-        fprintf(stderr, "[HOOK C++] Try running: nm -D /opt/onnxruntime/lib/libonnxruntime.so | grep Session | grep C1\n");
-        fprintf(stderr, "[HOOK C++] Note: The C API hook is more reliable and recommended\n");
+
+
+    if (g_orig_ctor)
+    {
+        fprintf(stderr,
+                "[HOOK C++] Unexpectedly found Session constructor symbol\n");
+    }
+    else
+    {
+        fprintf(stderr,
+                "[HOOK C++] Session constructor symbol not found\n");
+
+        fprintf(stderr,
+                "[HOOK C++] This is expected: Ort::Session is an inline wrapper\n");
+
+        fprintf(stderr,
+                "[HOOK C++] Use the C API hook instead:\n");
+
+        fprintf(stderr,
+                "[HOOK C++] LD_PRELOAD=onnx_session_hook.so\n");
     }
 }
 
-// NOTE: Full symbol interception requires more advanced techniques
-// such as using the linker's --wrap flag or using a separate library
-// that overrides the specific symbol.
-// 
-// This hook is provided as an optional demonstration. The C API hook
-// (onnx_session_hook.c) is recommended for production use because:
-// 1. The C API is stable and documented
-// 2. No name mangling to resolve
-// 3. The C++ wrapper internally calls the C API
-// 4. More reliable across ONNX Runtime versions
-//
-// To find the correct symbol for your specific setup:
-// $ nm -D /opt/onnxruntime/lib/libonnxruntime.so | grep Session | grep C1
-// $ objdump -T /opt/onnxruntime/lib/libonnxruntime.so | grep Session | grep C1
-//
-// If this hook doesn't work, use the C API hook instead:
-// $ LD_PRELOAD=../build/onnx_session_hook.so ./infer_onnx
+
+/*
+ * Conclusion:
+ *
+ * The C++ API cannot be hooked with LD_PRELOAD in the same way as the C API.
+ *
+ * The working path is:
+ *
+ *     Ort::Session()
+ *          |
+ *          v
+ *     OrtApi::CreateSessionFromArray()
+ *          |
+ *          v
+ *     libonnxruntime.so
+ *
+ * The C API function table is dynamically dispatched and can be patched.
+ * The C++ wrapper is compiled into the application and cannot be intercepted
+ * through dynamic symbol replacement.
+ */

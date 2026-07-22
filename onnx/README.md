@@ -66,8 +66,20 @@ Override the password or the input model without editing the `Makefile`:
 ```bash
 make run-attack PASSWORD=yourpassword MODEL=../models/other_model.onnx
 ```
+### Experimental C++ hook
 
-`onnx_session_hook_cxx.cpp` is intentionally **not** built by `make all` — see "Why the C++ API can't be hooked the same way" below for why it's kept in the repo without being part of the working toolkit.
+The C++ hook can be compiled separately:
+```bash
+make hook-cxx-experimental
+```
+
+It generates:
+
+../build/onnx_session_hook_cxx.so
+
+However, this hook is intentionally *not part* of make all because it is not a reliable interception method.
+
+The working attack uses the ONNX Runtime C API hook instead.
 
 ### What each target does
 
@@ -127,13 +139,38 @@ diff ../models/dumped_model.onnx ../models/model.onnx
 
 An earlier version of the hook used `dlopen("libonnxruntime.so", ...)` + `dlsym` to resolve the real `OrtGetApiBase`. This is fragile in an `LD_PRELOAD` context: if the dynamic linker's search path doesn't happen to resolve the library name, `dlopen` can fail silently, leading to a NULL function pointer call (segfault) when the real function is invoked. `dlsym(RTLD_NEXT, ...)` is the correct tool for this: it asks the dynamic linker to resolve the symbol from the libraries loaded *after* this one in the process, i.e. directly from the real `libonnxruntime.so` already mapped into the process — no extra `dlopen` needed, and no dependency on library search paths.
 
-## Why the C++ API can't be hooked the same way
+### Why the C++ API hook does not work
 
-`onnx_session_hook_cxx.cpp` is kept in this repository as a documented dead end, not as a working alternative to `onnx_session_hook.c`. It is not built by `make all`.
+onnx_session_hook_cxx.cpp is kept as a documented experiment.
 
-The reason it can't work is structural, not a matter of guessing the wrong symbol name: `Ort::Session`'s constructor is defined `inline`, directly inside `onnxruntime_cxx_inline.h`. An `inline` function's code is compiled directly into whatever binary includes that header — here, into `infer_onnx` itself — rather than being compiled once into `libonnxruntime.so` and called from there. As a result, there is no dynamically-resolved symbol call to `Ort::Session::Session(...)` for `LD_PRELOAD` to intercept: the mangled constructor names the hook searches for (`_ZN3Ort7SessionC1E...` and its variants) simply don't exist as exported symbols in `libonnxruntime.so`, and depending on optimization the call may even be fully inlined away inside `infer_onnx` with no separate call at all.
+The issue is structural:
 
-This is a useful illustration for understanding the attack surface in general: what matters is not which API a developer *writes against*, but where the corresponding code actually executes at runtime. `OrtApi::CreateSessionFromArray` is hookable because it is a real, dynamically-dispatched call into a separate shared library. The C++ wrapper around it is not, because it's just a convenience layer that gets compiled away into the caller.
+Ort::Session is a C++ wrapper whose constructors are defined inline in the ONNX Runtime headers. The constructor code is compiled directly into the application using the header.
+
+Therefore:
+
+there is usually no exported constructor symbol inside libonnxruntime.so
+LD_PRELOAD cannot reliably intercept it
+searching for mangled names such as:
+_ZN3Ort7SessionC1...
+
+does not provide a stable hook point
+
+The C++ wrapper eventually calls the C API, which is why the C API hook is the correct interception layer.
+
+The important point is that the hook target must be a runtime-resolved function call. The C API provides this through the OrtApi function table, while the C++ wrapper does not.
+
+### Verification 
+After running:
+```bash
+make run-attack
+```
+
+compare: 
+```bash
+diff ../models/dumped_model.onnx ../models/model.onnx
+```
+No output means the dumped model is identical to the original model.
 
 ## References
 
