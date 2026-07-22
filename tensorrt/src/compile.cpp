@@ -136,8 +136,8 @@ int main(int argc, char* argv[]) {
     std::cout << "[2/2] Engine encryption...\n";
     auto encrypted = encrypt(engine, password);
 
-    // Write the encrypted engine into the ../runtime/ directory by default.
-    std::ofstream out("../runtime/" + outPath, std::ios::binary);
+    // Write the encrypted engine into the ../models/ directory by default.
+    std::ofstream out("../models/" + outPath, std::ios::binary);
     out.write(reinterpret_cast<const char*>(encrypted.data()), encrypted.size());
     std::cout << "       Encrypted engine dumped in : " << outPath << "\n";
     return 0;

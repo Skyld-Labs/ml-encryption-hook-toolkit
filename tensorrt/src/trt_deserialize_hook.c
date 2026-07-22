@@ -11,7 +11,7 @@
  *  2. Call the real function to obtain a runtime object.
  *  3. Walk the runtime object's internal pointers to reach the implementation
  *     vtable and replace the deserialize entry with our `hook` function.
- *  4. The hook saves the provided `blob` to `../attack/dumped.engine` and
+ *  4. The hook saves the provided `blob` to `../models/dumped_model.engine` and
  *     then delegates back to the original deserialize function.
  */
 
@@ -46,7 +46,7 @@ static void *hook(void *self, const void *blob, size_t size)
     printf("%s","[HOOK] ENGINE HOOKED \n");
 
     /* Dump the raw engine blob to a file for offline inspection. */
-    FILE *f = fopen("../attack/dumped.engine", "wb");
+    FILE *f = fopen("../models/dumped_model.engine", "wb");
     if (f) {
         fwrite(blob, 1, size, f);
         fclose(f);

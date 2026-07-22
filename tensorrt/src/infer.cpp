@@ -1,16 +1,16 @@
-#include <NvInfer.h>           // API TensorRT (types, runtime, engine, context)
-#include <cuda_runtime.h>      // API CUDA pour cudaMalloc, streams, etc.
+##include <NvInfer.h>           // TensorRT API (types, runtime, engine, context)
+#include <cuda_runtime.h>      // CUDA API for cudaMalloc, streams, etc.
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include <string>
 
-#include <openssl/evp.h>       // OpenSSL EVP pour chiffrement/déchiffrement
-#include <openssl/sha.h>       // SHA256 pour dériver la clé depuis le mot de passe
+#include <openssl/evp.h>       // OpenSSL EVP for encryption/decryption
+#include <openssl/sha.h>       // SHA256 for deriving key from password
 
 using namespace nvinfer1;
 
-/* Logger TensorRT minimal — affiche les messages WARNING et erreurs */
+/* Minimal TensorRT logger — prints WARNING and ERROR messages only */
 class Logger : public ILogger {
     void log(Severity severity, const char *msg) noexcept override {
         if (severity <= Severity::kWARNING)
@@ -20,51 +20,51 @@ class Logger : public ILogger {
 
 
 // ─────────────────────────────────────────────
-// Déchiffrement AES-256-ECB (symétrique avec compile.cpp)
-// - On dérive une clé 32 octets par SHA256(password).
-// - AES-256-ECB est simple (attention aux faiblesses d'ECB).
+// AES-256-ECB Decryption (symmetric with compile.cpp)
+// - Derives a 32-byte key using SHA256(password).
+// - AES-256-ECB is simple (note: ECB has known weaknesses).
 // ─────────────────────────────────────────────
 static std::vector<unsigned char> decrypt(const std::vector<unsigned char>& data,
                                           const std::string& password) {
     unsigned char key[32];
-    // Dérive la clé (32 octets) depuis le mot de passe via SHA256
+    // Derive 32-byte key from password using SHA256
     SHA256(reinterpret_cast<const unsigned char*>(password.data()),
            password.size(), key);
 
-    // Initialise le contexte EVP pour décryptage AES-256-ECB
+    // Initialize EVP context for AES-256-ECB decryption
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     EVP_DecryptInit_ex(ctx, EVP_aes_256_ecb(), nullptr, key, nullptr);
 
-    std::vector<unsigned char> out(data.size() + 32); // tampon de sortie (sûr)
+    std::vector<unsigned char> out(data.size() + 32); // safe output buffer
     int outLen1 = 0, outLen2 = 0;
 
-    // Décrypte les données
+    // Decrypt the data
     EVP_DecryptUpdate(ctx, out.data(), &outLen1,
                       data.data(), static_cast<int>(data.size()));
-    // Finalise et vérifie la validité du padding ; si fail => clé incorrecte
+    // Finalize and verify padding validity; if fails => incorrect key
     if (EVP_DecryptFinal_ex(ctx, out.data() + outLen1, &outLen2) <= 0) {
-        std::cerr << "Échec du déchiffrement (mauvaise clé ?)\n";
+        std::cerr << "Decryption failed (wrong key?)\n";
         EVP_CIPHER_CTX_free(ctx);
         exit(1);
     }
 
     EVP_CIPHER_CTX_free(ctx);
-    out.resize(outLen1 + outLen2); // taille réelle
+    out.resize(outLen1 + outLen2); // actual size
     return out;
 }
 
 
 int main(int argc, char **argv)
 {
-    // Vérification des arguments
+    // Argument validation
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <model.engine.enc> <clé>\n";
+        std::cerr << "Usage: " << argv[0] << " <model.engine.enc> <password>\n";
         return 1;
     }
     const char *engine_path = argv[1];
     std::string password    = argv[2];
 
-    // Lit l'engine chiffré depuis le fichier
+    // Read the encrypted engine from file
     std::ifstream file(engine_path, std::ios::binary | std::ios::ate);
     if (!file) { std::cerr << "Cannot open " << engine_path << "\n"; return 1; }
     size_t size = file.tellg();
@@ -74,11 +74,11 @@ int main(int argc, char **argv)
     file.close();
     std::cout << " Engine: " << engine_path << " (" << size << " bytes)\n";
 
-    // Déchiffre en mémoire (on évite d'écrire l'engine déchiffré sur disque)
+    // Decrypt in memory (avoid writing decrypted engine to disk)
     std::vector<unsigned char> blob = decrypt(encBlob, password);
     std::cout << "Decrypted engine: " << blob.size() << " bytes\n";
 
-    // Crée le runtime TensorRT et désérialise l'engine depuis le tampon mémoire
+    // Create TensorRT runtime and deserialize engine from memory buffer
     IRuntime *runtime = createInferRuntime(gLogger);
     ICudaEngine *engine = runtime->deserializeCudaEngine(blob.data(), blob.size());
     if (!engine) {
@@ -86,16 +86,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // Crée un contexte d'exécution
+    // Create an execution context
     IExecutionContext *ctx = engine->createExecutionContext();
 
-    // Récupère le nombre de tenseurs d'entrée/sortie (I/O)
+    // Get number of input/output tensors
     int nb = engine->getNbIOTensors();
     std::cout << "IO tensors: " << nb << "\n";
 
-    /* Affiche les dims de chaque tenseur et fixe les dims dynamiques
-       - Si une dimension est négative (dynamiques), on la remplace par 1 ici.
-       - Ensuite on appelle setInputShape pour appliquer la forme au contexte. */
+    /* Display dims of each tensor and handle dynamic dimensions
+       - If a dimension is negative (dynamic), replace with 1 here.
+       - Then call setInputShape to apply the shape to the context. */
     for (int i = 0; i < nb; i++) {
         const char *name = engine->getIOTensorName(i);
         Dims dims = engine->getTensorShape(name);
@@ -109,44 +109,44 @@ int main(int argc, char **argv)
             bool has_dynamic = false;
             for (int d = 0; d < dims.nbDims; d++)
                 if (dims.d[d] < 0) {
-                    // Simple stratégie : remplacer dimension dynamique par 1
+                    // Simple strategy: replace dynamic dimension with 1
                     dims.d[d] = 1;
                     has_dynamic = true;
                 }
             if (has_dynamic) {
-                // Applique la forme d'entrée au contexte
+                // Apply input shape to the context
                 ctx->setInputShape(name, dims);
             }
         }
     }
 
-    /* Alloue les buffers GPU pour chaque tenseur I/O (float assumed)
-       - calcule le nombre d'éléments n = produit(dims)
-       - utilise cudaMalloc + cudaMemset
-       - lie chaque buffer au nom du tenseur via setTensorAddress */
+    /* Allocate GPU buffers for each I/O tensor (float assumed)
+       - Calculate number of elements n = product(dims)
+       - Use cudaMalloc + cudaMemset
+       - Bind each buffer to tensor name via setTensorAddress */
     std::vector<void *> buffers(nb, nullptr);
     for (int i = 0; i < nb; i++) {
         const char *name = engine->getIOTensorName(i);
-        Dims dims = ctx->getTensorShape(name); // forme effective dans le contexte
+        Dims dims = ctx->getTensorShape(name); // effective shape in context
         size_t n = 1;
         for (int d = 0; d < dims.nbDims; d++) {
             n *= (dims.d[d] > 0 ? dims.d[d] : 1);
         }
-        // Ici on suppose float ; adapte si besoin (ex : int8)
+        // Assuming float here; adapt if needed (e.g., int8)
         cudaMalloc(&buffers[i], n * sizeof(float));
         cudaMemset(buffers[i], 0, n * sizeof(float));
         ctx->setTensorAddress(name, buffers[i]);
     }
 
-    // Lance l'inférence sur un stream CUDA
+    // Run inference on a CUDA stream
     cudaStream_t stream;
     cudaStreamCreate(&stream);
     ctx->enqueueV3(stream);               // submit inference (non-blocking)
-    cudaStreamSynchronize(stream);        // attend la fin
+    cudaStreamSynchronize(stream);        // wait for completion
     cudaStreamDestroy(stream);
     std::cout << "Inference OK\n";
 
-    // Libère les ressources GPU et TensorRT
+    // Free GPU and TensorRT resources
     for (void *b : buffers) cudaFree(b);
     delete ctx;
     delete engine;
