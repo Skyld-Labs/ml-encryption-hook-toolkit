@@ -84,7 +84,6 @@ OV_READ_MODEL_SYMBOL := $(shell nm -D $(OV_LIBPATH) 2>/dev/null | grep 'read_mod
 
 The `check-symbol` target fails the build early with a clear error if the symbol can't be found (e.g. `OV_ROOT` is wrong, or the OpenVINO ABI changed in a newer version), instead of failing later with a confusing linker error.
 
-> **Note:** the resolved symbol is currently passed to the compiler via `-DOV_READ_MODEL_SYMBOL=...`, but `openvino_read_model_hook.cpp` still binds to the symbol through a hardcoded `__asm__(...)` string rather than consuming that macro. This should be wired up (replace the hardcoded string with `__asm__(OV_READ_MODEL_SYMBOL)`) so a Runtime upgrade only requires re-running `make`, with no source edit.
 
 ### Manual build (if you're not using `make`)
 
