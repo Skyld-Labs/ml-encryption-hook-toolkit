@@ -1,8 +1,8 @@
 CXX = g++
 CC  = gcc
 
-TFLITE_SRC       = /home/elodie/Downloads/tensorflow
-TFLITE_BUILD_LIB = /home/elodie/Downloads/tflite_build
+TFLITE_SRC ?= $(HOME)/Downloads/tensorflow
+TFLITE_BUILD_LIB ?= $(HOME)/Downloads/tflite_build
 
 # Correct FlatBuffers include path
 # Le fichier base.h est dans: /home/elodie/Downloads/tflite_build/flatbuffers/include/flatbuffers/base.h
