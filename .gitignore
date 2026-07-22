@@ -1,28 +1,69 @@
-# Binaires compilés
+# Compiled binaries
 *.o
 *.so
+*.exe
+*.dll
+*.dylib
+
+# Build directories (keep .gitkeep)
+**/build/
+!**/build/.gitkeep
+
+# Generated models (encrypted and dumped)
+**/models/*.enc
+**/models/dumped_*
+**/models/*.bin
+**/models/*.xml
+**/models/*.tflite
+
+
+# Binaries in src/ (if they end up there)
+**/src/compile_*
+**/src/infer_*
+**/src/*.so
+**/src/*.exe
+
+# Old directories (to be removed)
+**/examples/
+**/runtime/
+**/attack/
+**/tests/
+
+# TensorRT specific
+tensorrt/runtime/
+tensorrt/attack/
 tensorrt/src/compile
 tensorrt/src/infer
-
-# Modeles et artefacts (trop lourds / générés, pas du code)
-*.onnx
-*.engine
-*.engine.enc
+tensorrt/engines/
+tensorrt/build/
 
 # VS Code
 .vscode/
+*.code-workspace
 
-# Dossiers de sortie generes a l'execution
-tensorrt/runtime/*
-tensorrt/attack/*
-!tensorrt/runtime/.gitkeep
-!tensorrt/attack/.gitkeep
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+.env/
 
-onnx/runtime/
-onnx/attack/
+# Logs and temp
+*.log
+*.tmp
+*.temp
 
-# OpenVINO — unified models/ folder + build/ folder
-openvino/models/*
-!openvino/models/.gitkeep
-openvino/build/
-openvino/src/*.so
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+*.iml
+**/models/*.onnx
