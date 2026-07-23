@@ -66,6 +66,18 @@ run-attack-double: $(BUILD_DIR)/infer_onnx $(BUILD_DIR)/onnx_session_hook.so enc
 	LD_PRELOAD="./$(BUILD_DIR)/onnx_session_hook.so" \
 	./$(BUILD_DIR)/infer_onnx $(MODELS_DIR)/model.onnx.enc $(PASSWORD)
 
+# Compile the pure-C victim
+$(BUILD_DIR)/infer_onnx_c: infer_onnx_c.c | setup
+	$(CC) -std=c11 infer_onnx_c.c -o $@ $(ORT_INC) $(ORT_LIB) $(ORT_RPATH) -lonnxruntime -lcrypto
+
+# Baseline run with the pure-C victim
+run-baseline-c: $(BUILD_DIR)/infer_onnx_c encrypt
+	./$(BUILD_DIR)/infer_onnx_c $(MODELS_DIR)/model.onnx.enc $(PASSWORD)
+
+# Attack against the pure-C victim (same hook.so as the C++ victim)
+run-attack-c-victim: $(BUILD_DIR)/infer_onnx_c $(BUILD_DIR)/onnx_session_hook.so encrypt
+	LD_PRELOAD=./$(BUILD_DIR)/onnx_session_hook.so ./$(BUILD_DIR)/infer_onnx_c $(MODELS_DIR)/model.onnx.enc $(PASSWORD)
+
 # Default attack uses C API hook (recommended)
 run-attack: run-attack-c
 
