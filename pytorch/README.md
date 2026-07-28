@@ -123,4 +123,12 @@ LD_LIBRARY_PATH=~/Documents/Skyld/libtorch/lib LD_PRELOAD=./pt_load_hook.so ./in
 - **Same hook, any wrapper**: Whether the application loads models via `torch::jit::load`, `torch::jit::LiteModuleLoader`, or any other entry point, if they internally call `torch::jit::load(istream&)`, the same hook applies.
 - **Runtime extraction unchanged**: The underlying principle remains consistent across all four frameworks in this toolkit: once the decrypted model is available in memory for execution, it is observable by any hook with the correct technique.
 
+## References
+
+- [PyTorch C++ / LibTorch Documentation](https://pytorch.org/cppdocs/)
+- [TorchScript and JIT](https://pytorch.org/docs/stable/jit.html)
+- [Symbol Interposition with LD_PRELOAD](https://man7.org/linux/man-pages/man8/ld.so.8.html)
+- [TensorRT Reference Implementation](../tensorrt/)
+- Parent project: [ML Encryption Hook Toolkit](../)
+
 ---
