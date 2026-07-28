@@ -26,11 +26,13 @@
 **/src/compile_tflite
 **/src/compile
 **/src/compile_qnn
+**/src/compile_pt
 **/src/infer_ov
 **/src/infer_onnx
 **/src/infer_tflite
 **/src/infer
 **/src/infer_qnn
+**/src/infer_pt
 **/src/output/
 **/src/__pycache__/
 
