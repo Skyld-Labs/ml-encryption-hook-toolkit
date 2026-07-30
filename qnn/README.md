@@ -94,7 +94,7 @@ Override the password or the input model:
 make run-attack PASSWORD=yourpassword MODEL=../models/other_model.onnx
 ```
 
-### What each stage does
+## What each target does
 
 - **`patch-onnx`** (`patch_onnx.py`): `qnn-onnx-converter` only supports the pre-opset-14 default for the Reshape operator's `allowzero` attribute (`allowzero=0`). Models exported with opset 14+ frequently set `allowzero=1`, which the converter rejects outright. This stage force-sets it back to 0 on every Reshape node before conversion.
 - **`convert`** (`qnn-onnx-converter`): converts the patched `.onnx` into QNN's intermediate representation — a `.cpp` file that composes the graph via QNN API calls, plus a `.bin` holding the weights.
@@ -103,6 +103,12 @@ make run-attack PASSWORD=yourpassword MODEL=../models/other_model.onnx
 - **`compile_qnn`**: encrypts `model_context.bin` with AES-256-ECB (same pattern as every other framework in this repo — key derived from password via SHA-256).
 - **`infer_qnn`**: the victim program. Decrypts the context binary in RAM, loads the QNN backend via `dlopen`, resolves the `QNN_INTERFACE` function table, and calls `QnnContext_createFromBinary()` on the decrypted buffer.
 - **`qnn_context_hook.so`**: the `LD_PRELOAD` library used in `make run-attack`.
+
+## Troubleshooting / Quirks
+
+- QNN requires Python 3.10 and the QAIRT SDK; if the pipeline fails, verify that the correct venv is active.
+- The GPU backend is required for context binary generation on x86; the CPU backend does not support context caching for this demo.
+- If `qnn-onnx-converter` rejects the model, rerun `patch_onnx.py` to fix `Reshape` `allowzero` attributes.
 
 ## How the hook works
 

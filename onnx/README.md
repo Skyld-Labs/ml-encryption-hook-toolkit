@@ -72,6 +72,12 @@ Override the password or the input model without editing the `Makefile`:
 make run-attack PASSWORD=yourpassword MODEL=../models/other_model.onnx
 ```
 
+## Troubleshooting / Quirks
+
+- The C API hook is the most stable path; the C++ hook is kept only as an experimental example.
+- If the hook does not capture the model, verify that the victim binary uses `OrtApi::CreateSessionFromArray` under the hood.
+- Ensure `ORT_ROOT` in `src/Makefile` points to a valid ONNX Runtime installation.
+
 ### Experimental C++ hook
 
 The C++ hook can be compiled separately:

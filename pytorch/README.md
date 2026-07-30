@@ -74,6 +74,12 @@ make run-attack PASSWORD=yourpassword MODEL=../models/other_model.pt
 - **`infer_pt`**: reads `model.pt.enc`, decrypts it in RAM using the provided password, wraps the decrypted bytes in an `std::istringstream`, and calls `torch::jit::load(stream)` to load and verify the model — this is the legitimate, non-hooked path.
 - **`pt_load_hook.so`**: the `LD_PRELOAD` library used in `make run-attack`. It intercepts `torch::jit::load(std::istream&, std::optional<c10::Device>, bool)` via symbol interposition (exact mangled name collision). It reads the entire decrypted buffer from the stream, dumps it to `../models/dumped_model.pt`, rewinds the stream, and passes control to the real `torch::jit::load`. The victim process continues without any visible sign of compromise.
 
+## Troubleshooting / Quirks
+
+- Verify that `LIBTORCH_ROOT` in `src/Makefile` points to a valid LibTorch installation.
+- The hook relies on a specific `torch::jit::load` overload; alternative loading paths may require additional inspection.
+- If the victim binary fails, ensure the decrypted model stream is rewound correctly by the hook.
+
 ## How the hook works
 
 Unlike frameworks that dispatch through vtables or C API function-pointer tables, PyTorch's `torch::jit::load(istream&)` is a plain exported C++ function. The attack uses **symbol interposition**:
@@ -127,7 +133,8 @@ LD_LIBRARY_PATH=~/Documents/Skyld/libtorch/lib LD_PRELOAD=./pt_load_hook.so ./in
 
 - [PyTorch C++ / LibTorch Documentation](https://pytorch.org/cppdocs/)
 - [TorchScript and JIT](https://pytorch.org/docs/stable/jit.html)
-- [Symbol Interposition with LD_PRELOAD](https://man7.org/linux/man-pages/man8/ld.so.8.html)
+- [LD_PRELOAD and symbol interposition](https://man7.org/linux/man-pages/man8/ld.so.8.html)
+- [C++ name mangling and symbol resolution](https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling)
 - [TensorRT Reference Implementation](../tensorrt/)
 - Parent project: [ML Encryption Hook Toolkit](../)
 

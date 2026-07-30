@@ -71,6 +71,12 @@ make run-attack PASSWORD=yourpassword MODEL=../models/other_model.onnx
 - **`infer`**: reads `model.engine.enc`, decrypts it in RAM, and calls `runtime->deserializeCudaEngine(blob, size)` to load and run inference — this is the legitimate, non-hooked path.
 - **`trt_deserialize_hook.so`**: the `LD_PRELOAD` library used in `make run-attack`. It intercepts `deserializeCudaEngine` and dumps the decrypted engine to `../models/dumped_model.engine` before letting the real function proceed.
 
+## Troubleshooting / Quirks
+
+- `IDX_DESERIALIZE` is version-dependent; if the hook does not intercept, rederive the vtable index for your TensorRT version.
+- Ensure TensorRT and CUDA headers/libraries are visible to the `Makefile` paths.
+- If the victim crashes, confirm the `LD_PRELOAD` hook is loaded and the real `deserializeCudaEngine` symbol is still available.
+
 ## Manual build (if you're not using `make`)
 
 ```bash

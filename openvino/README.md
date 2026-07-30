@@ -74,6 +74,12 @@ make run-attack PASSWORD=yourpassword MODEL=../models/other_model.onnx
 - **`infer_ov`**: reads `model.ov.enc`, decrypts it in RAM, splits it back into XML and weights, and calls `core.read_model(xmlStr, weightsTensor)` to run inference — this is the legitimate, non-hooked path.
 - **`openvino_read_model_hook.so`**: the `LD_PRELOAD` library used in `make run-attack`. It intercepts `read_model` and dumps its arguments to `../models/dumped_model.xml` and `../models/dumped_weights.bin` before letting the real function proceed.
 
+## Troubleshooting / Quirks
+
+- Ensure the `OV_ROOT` path in `src/Makefile` matches your OpenVINO install location.
+- The hook depends on the specific mangled symbol for `ov::Core::read_model(...)`, so OpenVINO ABI mismatches can break the build.
+- Check that `LD_LIBRARY_PATH` includes OpenVINO runtime and TBB libraries when running the demo.
+
 ### Automatic symbol resolution
 
 Building the hook requires binding to the exact mangled symbol name of `ov::Core::read_model(const std::string&, const ov::Tensor&) const`, which is version-specific. Rather than hardcoding it, `src/Makefile` resolves it automatically at parse time:

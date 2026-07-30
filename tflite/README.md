@@ -98,6 +98,12 @@ make hook-cxx-experimental
 - **`tflite_model_create_hook.so`**: the `LD_PRELOAD` library used in `make run-attack`. It intercepts `TfLiteModelCreate` and dumps the decrypted model to `../models/dumped_model.tflite` before letting the real function proceed.
 - **`tflite_model_create_hook_cxx.so`**: the alternative C++-level hook (see "Two hooks" below), built by `make hook-cxx-experimental`. Dumps to `../models/dumped_model_cxx.tflite`.
 
+## Troubleshooting / Quirks
+
+- TensorFlow Lite must be built with shared libraries enabled (`BUILD_SHARED_LIBS=ON`) for `LD_PRELOAD` to work.
+- The C API hook is the primary supported path; the C++ hook is experimental and may depend on specific TFLite exports.
+- If the model fails to load, verify `LD_LIBRARY_PATH` and the location of the TensorFlow Lite shared library.
+
 ## Manual build (if you're not using `make`)
 
 ```bash

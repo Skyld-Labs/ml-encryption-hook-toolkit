@@ -1,8 +1,31 @@
 # ml-encryption-hook-toolkit
 
+![CI](https://img.shields.io/static/v1?label=CI&message=enabled&color=blue)
+
 A toolkit demonstrating runtime extraction of encrypted ML models across six inference frameworks.
 
 This repository collects proof-of-concept attacks that capture plaintext model data from the runtime boundary of each framework, even when the on-disk model is stored encrypted.
+
+## Automation and validation
+
+This repository includes a root GitHub Actions workflow (`.github/workflows/ci.yml`) and a root `Makefile` to keep the project consistent across frameworks.
+
+The automation currently validates:
+
+- shell script syntax with `shellcheck`
+- root script syntax with `bash -n`
+- the presence of `README.md` and `Makefile` in each framework directory
+- the root `run_all.sh` and `cleanup_generated.sh` helpers
+
+Use the root project targets:
+
+```bash
+make all
+make lint
+make test
+make clean
+make run-attack
+```
 
 ## Frameworks covered
 
@@ -73,6 +96,12 @@ When you want a clean repository state, run:
 
 This removes generated binaries and temporary model outputs from all framework subdirectories while preserving source models and `.gitkeep` files.
 
+## Specific QNN notes
+
+- QNN uses a multi-stage conversion pipeline and a runtime context binary, which makes it the most complex framework in this toolkit.
+- The QAIRT SDK's QNN Python extension is ABI-locked to Python 3.10, so this repository intentionally documents a separate Python 3.10 workflow for QNN.
+- The QNN pipeline targets the GPU-enabled context binary path because the x86 CPU backend does not support context caching for this demonstration.
+
 ## Known limitations
 
 - The toolkit uses **AES-256-ECB** for simplicity and consistency. That choice is not the security claim: the attack is not about breaking AES or the cipher mode.
@@ -83,6 +112,10 @@ This removes generated binaries and temporary model outputs from all framework s
   - QNN requires Python 3.10 and the QAIRT SDK, plus the GPU backend for context binary generation.
   - TensorRT requires CUDA/TensorRT headers and runtime.
   - OpenVINO requires the OpenVINO runtime and its library path configuration.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding frameworks, hooks, artifact validation, and preparing clean pull requests.
 
 ## References
 
