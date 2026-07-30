@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Validate shell scripts
+        run: |
+          find . -name '*.sh' -print0 | xargs -0 shellcheck
+
+      - name: Validate root script syntax
+        run: |
+          bash -n ./run_all.sh
+          bash -n ./cleanup_generated.sh
+
+      - name: Run root project tests
+        run: make test
